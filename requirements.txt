@@ -1,0 +1,10 @@
+pdfplumber
+Pillow
+pytesseract
+reportlab
+gspread
+google-auth
+python-dotenv
+numpy
+opencv-python
+requests
