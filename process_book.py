@@ -471,7 +471,7 @@ def process_pdf_file(pdf_path: str, base_output_dir: str):
                     elif page_half.side == PageSide.RIGHT:
                         suffix = f"b"
                     
-                    output_filename = f"T-{group_dir}_{rock_name}_{suffix}.pdf"
+                    output_filename = f"T-{region_dir}_{group_dir}_{rock_name}_{suffix}.pdf"
                     output_pdf_path = os.path.join(output_dir, output_filename)
 
                     print(
