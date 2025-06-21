@@ -1,9 +1,4 @@
 # TODO List
 
-- [ ] Nazwy plikow i katalogow bez polskich znaków
-- [ ] Nazwy plikow i katalogow bez bialych znakow. Wszystkie biale znaki zamieniamy na "_".
-- [ ] Nazwa plikow topograficznych:
-T-{REJON}_{nazwa skaly}_{a|b|c|...}
 - [ ] Co jeśli pojawi się więcej niż 1 skała na stronie?
 dwa razy ten sam plik, z inna nazwa skaly
-- [ ] Wszystkie zmienne w jezykiu angielskim
