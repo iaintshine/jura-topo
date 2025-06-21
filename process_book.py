@@ -16,6 +16,8 @@ from dotenv import load_dotenv
 import sys
 from dataclasses import dataclass
 import json
+import unicodedata
+import re
 
 # --- Configuration ---
 INPUT_DIR = "input"
@@ -56,8 +58,9 @@ class RockInfo:
     def __init__(self, region: str = "NIEZNANE", group: str = "NIEZNANE", rock_name: str = "NIEZNANE", page: PageHalf | None = None):
         self.region = region
         self.group = group
-        self.rock_name = "".join(c if c.isalnum() or c in " -" else "_" for c in rock_name).strip().replace(" ", "_")
+        self.rock_name = rock_name
         self.page = page
+        # Do not sanitize here; sanitize only when using for paths
 
 
 # --- Helper Functions ---
@@ -449,12 +452,12 @@ def process_pdf_file(pdf_path: str, base_output_dir: str):
                     region_dir = rock_info.region if rock_info and rock_info.region and rock_info.region != "NIEZNANE" else None
                     group_dir = rock_info.group if rock_info and rock_info.group and rock_info.group != "NIEZNANE" else None
                     rock_name = rock_info.rock_name if rock_info and rock_info.rock_name else f"nierozpoznana_skalka_{get_timestamp_str()}"
-                    # Sanitize directory names
+                    # Sanitize directory and file names
                     if region_dir:
-                        region_dir = region_dir.replace("/", "_").replace("\\", "_")
+                        region_dir = sanitize_filename(region_dir)
                     if group_dir:
-                        group_dir = group_dir.replace("/", "_").replace("\\", "_")
-                    rock_name = rock_name.replace("/", "_").replace("\\", "_")
+                        group_dir = sanitize_filename(group_dir)
+                    rock_name = sanitize_filename(rock_name)
                     # Build output_dir
                     output_dir = base_output_dir
                     if region_dir:
@@ -507,13 +510,13 @@ def export_meta_to_csv(base_output_dir: str):
         writer = csv.writer(csvfile)
         writer.writerow(["Name", "TOPO", "region", "group"])
         for entry in meta_entries:
-            name = entry.get("rock_name", "")
+            name = sanitize_filename(entry.get("rock_name", ""))
             output_path = entry.get("output_path", "")
             if not output_path.startswith("./"):
                 output_path = "./" + output_path.lstrip("./")
             topo = f'<a href="{output_path}" target="blank">TOPO</a>'
-            region = entry.get("region", "")
-            group = entry.get("group", "")
+            region = sanitize_filename(entry.get("region", ""))
+            group = sanitize_filename(entry.get("group", ""))
             writer.writerow([name, topo, region, group])
     print(f"Exported meta information to CSV: {csv_path}")
 
@@ -543,13 +546,13 @@ def export_meta_to_google_sheet(base_output_dir: str, sheet_name: str = "Topo Ex
         headers = ["Name", "TOPO", "region", "group"]
         rows = []
         for entry in meta_entries:
-            name = entry.get("rock_name", "")
+            name = sanitize_filename(entry.get("rock_name", ""))
             output_path = entry.get("output_path", "")
             if not output_path.startswith("./"):
                 output_path = "./" + output_path.lstrip("./")
             topo = f'<a href="{output_path}" target="blank">TOPO</a>'
-            region = entry.get("region", "")
-            group = entry.get("group", "")
+            region = sanitize_filename(entry.get("region", ""))
+            group = sanitize_filename(entry.get("group", ""))
             rows.append([name, topo, region, group])
         worksheet.append_row(headers)
         for row in rows:
@@ -559,6 +562,33 @@ def export_meta_to_google_sheet(base_output_dir: str, sheet_name: str = "Topo Ex
         print(f"Google Sheet utworzony: {sh.url}")
     except Exception as e:
         print(f"Google Sheets export failed: {e}\n(Upewnij się, że masz gspread, google-auth i credentials.json w katalogu projektu.)")
+
+
+def sanitize_filename(name: str) -> str:
+    """
+    Converts a string to a safe ASCII-only, alphanumeric (Latin only) filename:
+    - Replaces Polish diacritics with their Latin equivalents (ł→l, ś→s, etc.)
+    - Replaces whitespace with underscores
+    - Removes non-alphanumeric characters (except underscores)
+    - Converts to ASCII
+    """
+    polish_map = str.maketrans({
+        'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n', 'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z',
+        'Ą': 'A', 'Ć': 'C', 'Ę': 'E', 'Ł': 'L', 'Ń': 'N', 'Ó': 'O', 'Ś': 'S', 'Ź': 'Z', 'Ż': 'Z',
+    })
+    name = name.translate(polish_map)
+    # Normalize and remove any remaining diacritics
+    name = unicodedata.normalize('NFKD', name)
+    name = name.encode('ascii', 'ignore').decode('ascii')
+    # Replace whitespace with underscores
+    name = re.sub(r'\s+', '_', name)
+    # Remove non-alphanumeric/underscore
+    name = re.sub(r'[^A-Za-z0-9_]', '', name)
+    # Remove leading/trailing underscores
+    name = name.strip('_')
+    # Collapse multiple underscores
+    name = re.sub(r'_+', '_', name)
+    return name
 
 
 def main():
